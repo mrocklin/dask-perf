@@ -16,7 +16,7 @@ from tornado import gen
 import numpy as np
 
 from distributed.comm import connect, listen
-import distributed.comm.ucx
+import ucp_py as ucp
 from distributed.protocol import (to_serialize, Serialized, serialize,
                                   deserialize)
 
@@ -43,12 +43,11 @@ async def run_bench(protocol, nbytes, niters):
     data = np.random.randint(0, 255, size=nbytes, dtype=np.uint8)
     item = Serialized(*serialize(data))
 
-    import pdb; pdb.set_trace()
     if protocol == 'tcp':
         listener = listen('tcp://127.0.0.1', server_handle_comm,
                           deserialize=False)
     else:
-        listener = listen(distributed.comm.ucx.ADDRESS,
+        listener = listen('ucx://' + ucp.get_address(),
                           server_handle_comm, deserialize=False)
     listener.start()
 
