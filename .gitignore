@@ -1,0 +1,6 @@
+dask-worker-space
+*.html
+*.prof
+*.lock
+*.dirlock
+__pycache__
