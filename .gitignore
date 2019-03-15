@@ -4,3 +4,5 @@ dask-worker-space
 *.lock
 *.dirlock
 __pycache__
+scheduler.json
+scheduler.pid
