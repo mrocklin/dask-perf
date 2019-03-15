@@ -1,11 +1,9 @@
 import argparse
-import contextlib
 from time import perf_counter as clock
 
 import dask
 import dask.array as da
 from distributed.utils import format_bytes
-from distributed import Client, get_task_stream
 
 import base
 
@@ -17,7 +15,7 @@ def parse_args(args):
 
 def main(args=None):
     args = parse_args(args)
-    client = Client(args.scheduler_address)
+    client = Client(args.scheduler_address)  # noqa
     X = da.random.random(size=(100_000, 10_000), chunks=1_000)
 
     protocol = client.scheduler_info()['address'].split(":")[0]

@@ -8,8 +8,6 @@ import dask.dataframe as dd
 from distributed import Client, wait
 
 import base
-import distributed.protocol.cudf  # noqa
-import distributed.protocol.numba  # noqa
 
 
 def parse_args(args):
@@ -23,14 +21,12 @@ def parse_args(args):
     return parser.parse_args(args)
 
 
-def main(args=None):
-    args = parse_args(args)
+def setup():
+    import distributed.protocol.cudf  # noqa
+    import distributed.protocol.numba  # noqa
 
-    n_rows_l = args.left_rows
-    n_rows_r = args.left_rows
-    n_keys = args.n_keys
-    client = Client(args.scheduler_address)  # noqa
 
+def make_data(n_keys, n_rows_l, n_rows_r):
     left = dd.concat([
         da.random.random(n_rows_l).to_dask_dataframe(columns='x'),
         da.random.randint(
@@ -44,6 +40,22 @@ def main(args=None):
     ], axis=1)
     gleft = left.map_partitions(cudf.from_pandas)
     gright = right.map_partitions(cudf.from_pandas)
+    return gleft, gright
+
+
+def main(args=None):
+    args = parse_args(args)
+
+    client = Client(args.scheduler_address)  # noqa
+    setup()
+    client.run_on_scheduler(setup)
+    client.run(setup)
+
+    n_keys = args.n_keys
+    n_rows_l = args.left_rows
+    n_rows_r = args.left_rows
+
+    gleft, gright = make_data(n_keys, n_rows_l, n_rows_r)
 
     t0 = clock()
     gleft, gright = dask.persist(gleft, gright)
