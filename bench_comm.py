@@ -7,14 +7,13 @@ import argparse
 from time import perf_counter as clock
 
 import numpy as np
-import ucp_py as ucp
+import ucp
 from tornado.ioloop import IOLoop
 from distributed.comm import connect, listen
 from distributed.protocol import Serialized, serialize
 from distributed.utils import parse_bytes
 
 import base
-
 
 def parse_args(args=None):
     parser = argparse.ArgumentParser(parents=[base.protocol])
@@ -26,14 +25,17 @@ def parse_args(args=None):
 
 
 async def server_handle_comm(comm):
-    msg = await comm.read()
-    assert msg['op'] == 'ping'
-    msg['op'] = 'pong'
-    await comm.write(msg)
-    await comm.close()
+    while True:
+        msg = await comm.read()
+        if msg['op'] == 'close':
+            await comm.close()
+            return
+        assert msg['op'] == 'ping'
+        msg['op'] = 'pong'
+        await comm.write(msg)
 
 
-async def run_bench(protocol, nbytes, niters):
+async def run_bench(protocol, nbytes, niters=10):
     data = np.random.randint(0, 255, size=nbytes, dtype=np.uint8)
     item = Serialized(*serialize(data))
 
@@ -45,19 +47,21 @@ async def run_bench(protocol, nbytes, niters):
                           server_handle_comm, deserialize=False)
     listener.start()
 
+    comm = await connect(listener.contact_address, deserialize=False)
     start = clock()
 
     for i in range(niters):
-        comm = await connect(listener.contact_address, deserialize=False)
         await comm.write({'op': 'ping', 'item': item})
         msg = await comm.read()
         assert msg['op'] == 'pong'
         assert isinstance(msg['item'], Serialized)
-        await comm.close()
         print('.', end='', flush=True)
-    print()
 
+    print()
     end = clock()
+    await comm.write({'op': 'close'})
+    await comm.close()
+
 
     listener.stop()
 
@@ -69,7 +73,7 @@ async def run_bench(protocol, nbytes, niters):
 
 async def main(args=None):
     args = parse_args(args)
-    await run_bench(args.protocol, args.n_bytes, 10)  # 100 MB
+    await run_bench(args.protocol, args.n_bytes)  # 100 MB
     # yield run_bench(10 * 1000**2, 100)  # 10 MB
     # yield run_bench(1 * 1000**2, 1000)  # 1 MB
 
