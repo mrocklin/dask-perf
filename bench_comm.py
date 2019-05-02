@@ -35,8 +35,9 @@ async def server_handle_comm(comm):
         await comm.write(msg)
 
 
-async def run_bench(protocol, nbytes, niters=10):
-    data = np.random.randint(0, 255, size=nbytes, dtype=np.uint8)
+async def run_bench(protocol, nbytes, niters=10, data=None):
+    if data is None:
+        data = np.random.randint(0, 255, size=nbytes, dtype=np.uint8)
     item = Serialized(*serialize(data))
 
     if protocol == 'tcp':
